@@ -83,7 +83,7 @@ class MyWidget extends Widget {
     this.title.className = `code-editor-widget-tab-class${
       closable ? " closable" : ""
     }`;
-    this.title.iconClass = icon || "lumino-editor-icon";
+    this.title.iconClass = ["lumino-editor-icon", icon].join(" ");
 
     this.addClass("my-widget");
     this.node.dataset.closable = String(closable);
@@ -111,16 +111,141 @@ class MyWidget extends Widget {
   }
 }
 
+/** Tab registry by widget ID */
+const tabRegistry = new Map<string, HTMLElement>();
+
 export default class Main {
   static create(options: MyWidgetOptions): Widget {
     return new MyWidget(options);
   }
-  static closer(config: any, render: any): void {
+
+  /** Icon style config */
+  static icons = {
+    close: { text: "×", fontSize: "26px", marginTop: "0" },
+    dirty: { text: "●", fontSize: "32px", marginTop: "-2px" },
+  };
+
+  /** Click handler config */
+  static handlers = {
+    /** Called when clicking close on a clean tab. Return false to cancel. */
+    onClose: (ctx: { widgetId: string; close: () => void }) => {
+      ctx.close();
+    },
+    /** Called when clicking close on a dirty tab. Return false to cancel. */
+    onDirtyClose: (ctx: { widgetId: string; close: () => void }) => {
+      ctx.close();
+    },
+  };
+
+  static closer(
+    config: {
+      tab: HTMLElement;
+      closable: boolean;
+      view?: Element | { id: string } | null;
+      widget?: Widget | null;
+    },
+    render?: (ctx: {
+      el: HTMLElement;
+      setDirty: (dirty: boolean) => void;
+      isDirty: () => boolean;
+      close: () => void;
+    }) => (() => void) | void
+  ): void {
+    const tab = config.tab;
+
+    // Skip if close icon already exists
+    if (tab.querySelector(".lumino-close-editor-icon")) {
+      return;
+    }
+
     const el = document.createElement("div");
     el.className = "lumino-close-editor-icon";
-    if (config.closable) {
-      el.addEventListener("click", render({ el }));
+    const widgetId = (config.view as { id?: string } | null)?.id ?? "";
+
+    // Hide if not closable (but keep space)
+    if (!config.closable) {
+      el.style.visibility = "hidden";
+      tab.appendChild(el);
+      return;
     }
-    config.tab.appendChild(el);
+
+    // Register tab by widget ID
+    if (widgetId) {
+      tabRegistry.set(widgetId, tab);
+    }
+
+    // Close function to dispose the widget
+    const close = () => {
+      config.widget?.dispose();
+    };
+
+    // Apply icon style helper
+    const applyIcon = (icon: { text: string; fontSize: string; marginTop: string }) => {
+      el.textContent = icon.text;
+      el.style.fontSize = icon.fontSize;
+      el.style.marginTop = icon.marginTop;
+    };
+
+    // Dirty state via dataset with auto-update
+    const setDirty = (dirty: boolean) => {
+      tab.dataset.dirty = String(dirty);
+      applyIcon(dirty ? this.icons.dirty : this.icons.close);
+    };
+
+    const isDirty = () => tab.dataset.dirty === "true";
+
+    // Initialize with close icon
+    applyIcon(this.icons.close);
+
+    // Default click handler using configured handlers
+    const defaultClick = () => {
+      const ctx = { widgetId, close };
+      if (isDirty()) {
+        this.handlers.onDirtyClose(ctx);
+      } else {
+        this.handlers.onClose(ctx);
+      }
+    };
+
+    // Get click handler from render or use default
+    const onClick = render?.({ el, setDirty, isDirty, close }) ?? defaultClick;
+
+    // Attach click handler
+    if (onClick) {
+      el.addEventListener("click", onClick);
+    }
+
+    tab.appendChild(el);
+  }
+
+  /** Set dirty state by widget ID */
+  static setDirty(widgetId: string, dirty: boolean): void {
+    const tab = tabRegistry.get(widgetId);
+    if (tab) {
+      tab.dataset.dirty = String(dirty);
+      // Update icon
+      const el = tab.querySelector(".lumino-close-editor-icon") as HTMLElement;
+      if (el) {
+        const icon = dirty ? this.icons.dirty : this.icons.close;
+        el.textContent = icon.text;
+        el.style.fontSize = icon.fontSize;
+        el.style.marginTop = icon.marginTop;
+      }
+    }
+  }
+
+  /** Check if a widget is dirty by ID */
+  static isDirty(widgetId: string): boolean {
+    return tabRegistry.get(widgetId)?.dataset.dirty === "true";
+  }
+
+  /** Get tab element by widget ID */
+  static getTab(widgetId: string): HTMLElement | undefined {
+    return tabRegistry.get(widgetId);
+  }
+
+  /** Unregister tab (call on tab removed) */
+  static unregister(widgetId: string): void {
+    tabRegistry.delete(widgetId);
   }
 }

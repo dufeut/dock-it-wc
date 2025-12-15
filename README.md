@@ -1,6 +1,6 @@
 # @dufeut/dock-it
 
-A powerful, resizable docking system web component built on [Lumino](https://github.com/jupyterlab/lumino) that enables IDE-like layouts with draggable tabs, splittable panels, and persistent layout serialization.
+A powerful, resizable docking system built on [Lumino](https://github.com/jupyterlab/lumino) that enables IDE-like layouts with draggable tabs, splittable panels, and persistent layout serialization.
 
 ## Features
 
@@ -23,64 +23,43 @@ pnpm add @dufeut/dock-it
 
 ## Quick Start
 
-### Web Component
+```typescript
+import { Docker, Widget } from "@dufeut/dock-it";
 
-```html
-<!DOCTYPE html>
-<html>
-  <head>
-    <style>
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        overflow: hidden;
-      }
-      #dock {
-        height: 100%;
-        width: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <lumino-dock id="dock"></lumino-dock>
+const docker = new Docker({
+  widgets: {
+    EDITOR: (cfg) =>
+      Widget.create({
+        ...cfg,
+        kind: "EDITOR",
+        render: (ctx) =>
+          `<div style="padding: 20px;"><h2>${ctx.label}</h2></div>`,
+      }),
+  },
+  onTabAdded: (config) => console.log("Tab added:", config),
+  onTabRemoved: (config) => console.log("Tab removed:", config),
+});
 
-    <script type="module">
-      import { LuminoDock, Widget } from "@dufeut/dock-it";
+// Attach to DOM
+docker.attach(document.getElementById("app"));
 
-      const dock = document.getElementById("dock");
+// Create and add widgets
+const widget1 = docker.widget("EDITOR", {
+  id: "file-1",
+  label: "index.js",
+  closable: true,
+});
+const widget2 = docker.widget("EDITOR", {
+  id: "file-2",
+  label: "style.css",
+  closable: true,
+});
 
-      dock.config = {
-        widgets: {
-          EDITOR: (cfg) =>
-            new Widget({
-              ...cfg,
-              kind: "EDITOR",
-              render: (ctx) =>
-                `<div style="padding: 20px;"><h2>${ctx.label}</h2></div>`,
-            }),
-        },
-      };
+docker.add(widget1);
+docker.add(widget2, { mode: "split-right", ref: widget1 });
 
-      const widget1 = dock.api.widget("EDITOR", {
-        id: "file-1",
-        label: "index.js",
-        closable: true,
-      });
-      const widget2 = dock.api.widget("EDITOR", {
-        id: "file-2",
-        label: "style.css",
-        closable: true,
-      });
-
-      dock.api.add(widget1);
-      dock.api.add(widget2, { mode: "split-right", ref: widget1 });
-
-      window.addEventListener("resize", () => dock.update());
-    </script>
-  </body>
-</html>
+// Handle resize
+window.addEventListener("resize", () => docker.update());
 ```
 
 ### IIFE (Script Tag)
@@ -88,64 +67,12 @@ pnpm add @dufeut/dock-it
 ```html
 <script src="./dist/lumino-easy.iife.js"></script>
 <script>
-  const { LuminoDock, Widget } = window.LuminoEasy;
+  const { Docker, Widget } = window.DockIt;
   // ... same usage as above
 </script>
 ```
 
-### Direct Docker API
-
-```typescript
-import { Docker, Widget } from "@dufeut/dock-it";
-
-const docker = new Docker({
-  widgets: {
-    EDITOR: (config) =>
-      new Widget({
-        ...config,
-        kind: "EDITOR",
-        render: (ctx) => `<h2>${ctx.label}</h2>`,
-      }),
-  },
-  onTabAdded: (config) => console.log("Tab added:", config),
-  onTabRemoved: (config) => console.log("Tab removed:", config),
-});
-
-docker.attach(document.getElementById("app"));
-
-const widget = docker.widget("EDITOR", { label: "File.js", closable: true });
-docker.add(widget);
-```
-
 ## API Reference
-
-### Web Component (`<lumino-dock>`)
-
-#### Properties
-
-| Property | Type            | Description                    |
-| -------- | --------------- | ------------------------------ |
-| `config` | `DockerConfig`  | Widget factories and callbacks |
-| `theme`  | `DockTheme`     | Theme configuration object     |
-| `api`    | `LuminoDockAPI` | Access to the Docker API       |
-
-#### Methods
-
-| Method     | Description                                 |
-| ---------- | ------------------------------------------- |
-| `update()` | Force layout update (call on window resize) |
-
-#### Events
-
-| Event   | Detail          | Description                    |
-| ------- | --------------- | ------------------------------ |
-| `ready` | `LuminoDockAPI` | Fired when dock is initialized |
-
-```javascript
-dock.addEventListener("ready", (e) => {
-  const api = e.detail;
-});
-```
 
 ### Docker API
 
@@ -212,10 +139,12 @@ interface DockerConfig {
 
 ## Theming
 
-Customize the appearance using the theme property:
+Customize the appearance using `setTheme`:
 
 ```typescript
-dock.theme = {
+import { setTheme } from "@dufeut/dock-it";
+
+setTheme({
   panelBg: "#1e1e1e",
   tabBarBg: "#252526",
   tabBg: "#2d2d2d",
@@ -230,20 +159,20 @@ dock.theme = {
   iconLeftMargin: "10px",
   iconRightMargin: "20px",
   iconRightOpacity: "0.3",
-};
-
-// Or update dynamically
-dock.api.setTheme({ tabBgActive: "#ff0000" });
+});
 ```
 
 ## Layout Persistence
 
 ```typescript
 // Save
-const layout = docker.saveJSON();
-localStorage.setItem("dock-layout", layout);
+localStorage.setItem("dock-layout", dock.saveJSON());
 
 // Restore
 const saved = localStorage.getItem("dock-layout");
-if (saved) docker.loadJSON(saved);
+if (saved) dock.loadJSON(container, saved);
 ```
+
+## License
+
+BSD-3-Clause

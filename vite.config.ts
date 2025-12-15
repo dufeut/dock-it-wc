@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, "src/bundle.ts"),
-      name: "LuminoEasy",
+      name: "Docker",
       fileName: (format) => `lumino-easy.${format}.js`,
       formats: ["es", "iife"],
     },
@@ -28,7 +28,7 @@ export default defineConfig({
           preventAssignment: true,
           values: {
             "process.env.NODE_ENV": JSON.stringify("production"),
-            "__DEV__": "false",
+            __DEV__: "false",
           },
         }),
       ],
@@ -45,7 +45,12 @@ export default defineConfig({
         passes: 5,
         drop_console: true,
         drop_debugger: true,
-        pure_funcs: ["console.log", "console.info", "console.debug", "console.warn"],
+        pure_funcs: [
+          "console.log",
+          "console.info",
+          "console.debug",
+          "console.warn",
+        ],
         pure_getters: true,
         unsafe: true,
         unsafe_arrows: true,

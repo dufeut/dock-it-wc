@@ -7,6 +7,7 @@ import {
   type WidgetConfig,
 } from "./layout-serializer";
 import type { RenderContext, RenderFn } from "./components/widget";
+import MyWidget from "./components/widget";
 
 export type {
   WidgetConfig,
@@ -21,10 +22,10 @@ interface KindedWidget extends Widget {
   kind: string;
 }
 
-/** Widget factory function type */
-export type WidgetFactory<T extends Widget = Widget> = (
+/** Widget factory function type - can return Widget or options object */
+export type WidgetFactory = (
   config: Omit<WidgetConfig, "kind">
-) => T;
+) => Widget | Omit<WidgetConfig, "kind">;
 
 /** Lifecycle hooks for a widget kind */
 export interface WidgetModel {
@@ -70,9 +71,9 @@ export class Docker {
   }
 
   /** Attach the dock panel to a DOM element */
-  attach(el: HTMLElement): this {
+  attach(el: HTMLElement | null): this {
     this.dock = this.createDock();
-    Widget.attach(this.dock, el);
+    if (el) Widget.attach(this.dock, el);
     return this;
   }
 
@@ -84,7 +85,8 @@ export class Docker {
       tabCallbacks: {
         onTabAdded: (config) => {
           config.tab.dataset.id = config.view?.id;
-          if (this.config.onTabAdded) this.config.onTabAdded(config);
+          MyWidget.closer(config); // Auto-setup closer
+          this.config.onTabAdded?.(config);
         },
         onTabRemoved: this.config.onTabRemoved,
       },
@@ -100,7 +102,13 @@ export class Docker {
       throw new Error(`Unknown widget kind: ${kind}`);
     }
 
-    const widget = factory(options) as KindedWidget;
+    const result = factory(options);
+
+    // If factory returns options object, wrap with Widget.create()
+    // Auto-set kind from the key name
+    const widget = (
+      result instanceof Widget ? result : MyWidget.create({ ...result, kind })
+    ) as KindedWidget;
     widget.kind = kind;
 
     this.config.model?.[kind]?.created?.(widget);
@@ -143,7 +151,8 @@ export class Docker {
   }
 
   /** Load layout from serialized object */
-  load(layout: SerializedLayout): this {
+  load(el: HTMLElement | null, layout: SerializedLayout): this {
+    this.attach(el);
     if (!this.dock) {
       throw new Error("Docker not attached. Call attach() first.");
     }
@@ -154,12 +163,20 @@ export class Docker {
         throw new Error(`Unknown widget kind: ${config.kind}`);
       }
 
-      const widget = factory({
+      const result = factory({
         id: config.id,
         label: config.label,
         icon: config.icon,
         closable: config.closable,
-      }) as KindedWidget;
+      });
+
+      // If factory returns options object, wrap with Widget.create()
+      // Auto-set kind from config
+      const widget = (
+        result instanceof Widget
+          ? result
+          : MyWidget.create({ ...result, kind: config.kind })
+      ) as KindedWidget;
 
       widget.kind = config.kind;
       this.config.model?.[config.kind]?.created?.(widget);
@@ -172,8 +189,8 @@ export class Docker {
   }
 
   /** Load layout from JSON string */
-  loadJSON(json: string): this {
-    return this.load(JSON.parse(json) as SerializedLayout);
+  loadJSON(el: HTMLElement | null, json: string): this {
+    return this.load(el, JSON.parse(json) as SerializedLayout);
   }
 
   /** Dispose the dock panel */

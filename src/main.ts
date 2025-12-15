@@ -1,86 +1,94 @@
-import "@lumino/widgets/style/index.css";
+import { Docker, Widget, setTheme } from "./bundle";
 import "./style.css";
-import MyWidget, { type RenderContext } from "./components/widget";
-import { Docker } from "./docker";
 
-const docker = new Docker({
-  model: {
-    CODE_EDITOR: {
-      created: (widget) => console.log(`[created] ${widget.id}`),
-      deleted: (widget) => console.log(`[deleted] ${widget.id}`),
-    },
+setTheme({
+  panelBg: "#1e1e1e",
+  tabBarBg: "#252526",
+  tabBg: "#2d2d2d",
+  tabBgActive: "#1e1e1e",
+  tabTextColor: "#ccc",
+  tabPaddingX: "8px",
+  tabBarMinHeight: "30px",
+  tabBarGap: "2px",
+  resizerBg: "#ccc",
+  resizerHv: "#00ccccff",
+  overlayBg: "#007acc",
+  overlayOpacity: "0.3",
+  iconLeftMargin: "10px",
+  iconRightMargin: "20px",
+  iconRightOpacity: "0.1",
+});
+
+Widget.icons = {
+  close: { text: "✕", fontSize: "20px", marginTop: "0" }, // × X ✕
+  dirty: { text: "◉", fontSize: "24px", marginTop: "2px" }, // ● ◉
+};
+
+Widget.handlers = {
+  onClose: ({ close }) => {
+    close(); // Just close
   },
+  onDirtyClose: ({ widgetId, close }) => {
+    // Show confirm dialog for dirty tabs
+    if (confirm(`"${widgetId}" has unsaved changes. Close anyway?`)) {
+      close();
+    }
+  },
+};
+
+const dock = new Docker({
   widgets: {
-    CODE_EDITOR: (config) =>
-      new MyWidget({
-        id: config.id,
-        label: config.label,
-        icon: config.icon,
-        closable: config.closable,
-        kind: "CODE_EDITOR",
-        render: (ctx: RenderContext) => `
-          <h2>${ctx.label}</h2>
-          <p>ID: ${ctx.id}</p>
-          <p>Kind: ${ctx.kind}</p>
-          <p>Closable: ${ctx.closable}</p>
-        `,
-      }),
+    editor: (cfg) => ({
+      ...cfg,
+      render: (ctx: any) =>
+        `<div style="padding: 20px; color: #ccc;"><h2>${ctx.label}</h2></div>`,
+    }),
   },
-  onTabAdded: (config) => console.log(`[tab added]`, config.tab.id),
-  onTabRemoved: (config) => console.log(`[tab removed]`, config.tab.id),
-  tabsMovable: true,
-  tabsConstrained: false,
-  addButtonEnabled: false,
+  onTabAdded: (config) => console.log("[tab added]", config.view?.id),
+  onTabRemoved: (config) => console.log("[tab removed]", config.view?.id),
 });
 
-const appEl = document.getElementById("app");
-if (!appEl) throw new Error("App element not found");
-
-docker.attach(appEl);
-
-const widgetA = docker.widget("CODE_EDITOR", {
-  id: "widget-a",
-  label: "Widget A",
-  closable: true,
-});
-const widgetB = docker.widget("CODE_EDITOR", {
-  id: "widget-b",
-  label: "Widget B",
+// Create widgets
+const widget1 = dock.widget("editor", {
+  id: "file-1",
+  label: "index.js",
   icon: "fa fa-car",
-  closable: true,
 });
-const widgetC = docker.widget("CODE_EDITOR", {
-  id: "widget-c",
-  label: "Widget C",
+const widget2 = dock.widget("editor", {
+  id: "file-2",
+  label: "style.css",
+});
+const widget3 = dock.widget("editor", {
+  id: "file-3",
+  label: "index.html",
   closable: false,
 });
-const widgetD = docker.widget("CODE_EDITOR", {
-  id: "widget-d",
-  label: "Widget D",
-  closable: false,
-});
 
-docker.add(widgetA);
-docker.add(widgetB, { mode: "split-right", ref: widgetA });
-docker.add(widgetC, { mode: "tab-after", ref: widgetB });
-docker.add(widgetD, { mode: "tab-after", ref: widgetC });
-docker.activate(widgetA);
+// Attach to DOM
+const container = document.getElementById("dock");
+dock.attach(container);
 
-const layout = docker.save();
-//console.log("Layout as JSON:\n", docker.saveJSON());
+// Add widgets
+dock.add(widget1);
+dock.add(widget2, { mode: "split-right", ref: widget1 });
+dock.add(widget3, { mode: "tab-after", ref: widget2 });
 
-// Demo: Dispose at 500ms, recreate at 3000ms
-setTimeout(() => {
-  console.log("\n=== HTMLElements DOCK ===");
-  console.log(docker.nodes);
-  console.log("\n=== DISPOSING DOCK ===");
-  docker.dispose();
-}, 500);
+// Handle resize
+window.addEventListener("resize", () => dock.update());
+
+console.log("Docker initialized!", dock);
 
 setTimeout(() => {
-  console.log("\n=== RECREATING DOCK FROM JSON ===");
-  docker.attach(appEl).load(layout);
-  console.log("Dock recreated from JSON!");
+  Widget.setDirty("file-1", true);
 }, 1000);
 
-window.addEventListener("resize", () => docker.update());
+/*
+// Save
+localStorage.setItem("dock-layout", dock.saveJSON());
+dock.dispose();
+// Restore
+setTimeout(() => {
+  const saved = localStorage.getItem("dock-layout");
+  if (saved) dock.loadJSON(container, saved);
+}, 3000);
+*/

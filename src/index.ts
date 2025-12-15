@@ -38,9 +38,11 @@ export type {
 } from "./layout-serializer";
 
 // Style utilities (for advanced customization)
-export { injectStyles, setTheme, stylesInjected, rawStyles, defaultTheme } from "./inject-styles";
+export {
+  injectStyles,
+  setTheme,
+  stylesInjected,
+  rawStyles,
+  defaultTheme,
+} from "./inject-styles";
 export type { DockTheme } from "./inject-styles";
-
-// Web Component
-export { LuminoDock } from "./web-component";
-export type { LuminoDockAPI } from "./web-component";

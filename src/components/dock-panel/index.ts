@@ -4,6 +4,7 @@ import { DockPanel, Widget } from "@lumino/widgets";
 export interface TabNodeConfig {
   readonly tab: HTMLElement;
   readonly view: Element | null;
+  readonly widget: Widget | null;
   readonly closable: boolean;
 }
 
@@ -44,9 +45,14 @@ export default class MyDockPanel extends DockPanel {
 
     if (type === "added") {
       const view = document.querySelector(`[aria-labelledby="${tabId}"]`);
+      // Find the widget that owns this tab by matching the view's id
+      const widget = view?.id
+        ? (Array.from(this.widgets()).find((w) => w.id === view.id) ?? null)
+        : null;
       const config: TabNodeConfig = {
         tab: data.node,
         view,
+        widget,
         closable: data.closable,
       };
       this.tabNodes.set(tabId, config);

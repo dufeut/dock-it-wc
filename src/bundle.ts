@@ -1,21 +1,35 @@
 /**
- * Web Component Bundle Entry Point
- * Auto-registers <lumino-dock> custom element
+ * Bundle Entry Point
  */
 
-import { LuminoDock, type LuminoDockAPI } from "./web-component";
+import { Docker } from "./docker";
 import Widget, { type MyWidgetOptions } from "./components/widget";
-import { setTheme, type DockTheme, defaultTheme } from "./inject-styles";
-import type { DockerConfig, RenderContext, RenderFn, SerializedLayout } from "./docker";
+import { injectStyles, setTheme, type DockTheme, defaultTheme } from "./inject-styles";
+
+// Auto-inject styles on import
+injectStyles();
+import type {
+  DockerConfig,
+  RenderContext,
+  RenderFn,
+  SerializedLayout,
+} from "./docker";
 
 // Export for ESM consumers
-export { LuminoDock, Widget, setTheme, defaultTheme };
-export type { LuminoDockAPI, MyWidgetOptions, DockTheme, DockerConfig, RenderContext, RenderFn, SerializedLayout };
+export { Docker, Widget, setTheme, defaultTheme };
+export type {
+  MyWidgetOptions,
+  DockTheme,
+  DockerConfig,
+  RenderContext,
+  RenderFn,
+  SerializedLayout,
+};
 
 // Expose on window for IIFE consumers
 if (typeof window !== "undefined") {
-  (window as any).LuminoEasy = {
-    LuminoDock,
+  (window as any).DockIt = {
+    Docker,
     Widget,
     setTheme,
     defaultTheme,
